@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "stalwart-mail.fullname" . }}
+  labels:
+    {{- include "stalwart-mail.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "stalwart-mail.fullname" . }}-headless
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "stalwart-mail.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "stalwart-mail.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "stalwart-mail.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: stalwart-mail
+        image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        livenessProbe:
+          httpGet:
+            path: /healthz/live
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz/ready
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10        
+        ports:
+          - name: http
+            containerPort: 8080
+          - name: https
+            containerPort: 443
+          - name: smtp
+            containerPort: 25
+          - name: submission
+            containerPort: 587
+          - name: smtps
+            containerPort: 465
+          - name: imap
+            containerPort: 143
+          - name: imaps
+            containerPort: 993
+          - name: sieve
+            containerPort: 4190
+        volumeMounts:
+        - name: stalwart-volume
+          mountPath: {{ .Values.persistence.mountPath }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: stalwart-volume
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: {{ .Values.persistence.size }}
