@@ -4,6 +4,10 @@ metadata:
   name: {{ include "stalwart-mail.fullname" . }}-headless
   labels:
     {{- include "stalwart-mail.labels" . | nindent 4 }}
+  {{- with .Values.service.headless.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: ClusterIP
   clusterIP: None

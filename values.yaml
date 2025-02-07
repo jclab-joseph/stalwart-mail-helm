@@ -37,7 +37,7 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   ports:
     http: 8080
     https: 443
@@ -47,6 +47,19 @@ service:
     imap: 143
     imaps: 993
     sieve: 4190
+  annotations: {}
+  headless:
+    ## @param service.headless.annotations Annotations for the headless service.
+    ##
+    annotations: {}
+
+externalAccess:
+  ## @param externalAccess.enabled Enable Kubernetes external cluster access to Stalwart Mail Server nodes
+  ##
+  enabled: true
+  service:
+    type: LoadBalancer
+    annotations: {}
 
 ingress:
   enabled: false

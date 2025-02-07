@@ -4,6 +4,10 @@ metadata:
   name: {{ include "stalwart-mail.fullname" . }}
   labels:
     {{- include "stalwart-mail.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
@@ -33,3 +37,48 @@ spec:
     targetPort: 4190
   selector:
     {{- include "stalwart-mail.selectorLabels" . | nindent 4 }}
+---
+{{- if .Values.externalAccess.enabled }}
+{{- range $i := until (int .Values.replicaCount) }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "stalwart-mail.fullname" $ }}-{{ $i }}
+  labels:
+    {{- include "stalwart-mail.labels" $ | nindent 4 }}
+  {{- with $.Values.externalAccess.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $.Values.service.type }}
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+    - name: https
+      port: 443
+      targetPort: 443
+    - name: smtp
+      port: 25
+      targetPort: 25
+    - name: submission
+      port: 587
+      targetPort: 587
+    - name: smtps
+      port: 465
+      targetPort: 465
+    - name: imap
+      port: 143
+      targetPort: 143
+    - name: imaps
+      port: 993
+      targetPort: 993
+    - name: sieve
+      port: 4190
+      targetPort: 4190
+  selector:
+    {{- include "stalwart-mail.selectorLabels" $ | nindent 4 }}
+    statefulset.kubernetes.io/pod-name: {{ include "stalwart-mail.fullname" $ }}-{{ $i }}
+{{- end }}
+{{- end }}
