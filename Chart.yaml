@@ -2,5 +2,5 @@ apiVersion: v2
 name: stalwart-mail
 description: Helm chart for Stalwart Mail Server
 type: application
-version: 0.1.0
-appVersion: "v0.11.6"
+version: 0.1.1
+appVersion: "v0.11.8"
