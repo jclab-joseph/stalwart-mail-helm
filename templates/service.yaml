@@ -10,31 +10,15 @@ metadata:
   {{- end }}
 spec:
   type: {{ .Values.service.type }}
+  {{- with $.Values.service.loadBalancerClass }}
+  loadBalancerClass: {{ . }}
+  {{- end }}
   ports:
-  - name: http
-    port: 8080
-    targetPort: 8080
-  - name: https
-    port: 443
-    targetPort: 443
-  - name: smtp
-    port: 25
-    targetPort: 25
-  - name: submission
-    port: 587
-    targetPort: 587
-  - name: smtps
-    port: 465
-    targetPort: 465
-  - name: imap
-    port: 143
-    targetPort: 143
-  - name: imaps
-    port: 993
-    targetPort: 993
-  - name: sieve
-    port: 4190
-    targetPort: 4190
+  {{- range $key, $val := $.Values.service.ports }}
+    - name: {{ $key }}
+      port: {{ $val }}
+      targetPort: {{ $val }}
+  {{- end }}
   selector:
     {{- include "stalwart-mail.selectorLabels" . | nindent 4 }}
 ---
@@ -51,32 +35,16 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
-  type: {{ $.Values.service.type }}
+  type: {{ $.Values.externalAccess.service.type }}
+  {{- with $.Values.externalAccess.service.loadBalancerClass }}
+  loadBalancerClass: {{ . }}
+  {{- end }}
   ports:
-    - name: http
-      port: 8080
-      targetPort: 8080
-    - name: https
-      port: 443
-      targetPort: 443
-    - name: smtp
-      port: 25
-      targetPort: 25
-    - name: submission
-      port: 587
-      targetPort: 587
-    - name: smtps
-      port: 465
-      targetPort: 465
-    - name: imap
-      port: 143
-      targetPort: 143
-    - name: imaps
-      port: 993
-      targetPort: 993
-    - name: sieve
-      port: 4190
-      targetPort: 4190
+  {{- range $key, $val := $.Values.externalAccess.service.ports }}
+    - name: {{ $key }}
+      port: {{ $val }}
+      targetPort: {{ $val }}
+  {{- end }}
   selector:
     {{- include "stalwart-mail.selectorLabels" $ | nindent 4 }}
     statefulset.kubernetes.io/pod-name: {{ include "stalwart-mail.fullname" $ }}-{{ $i }}
