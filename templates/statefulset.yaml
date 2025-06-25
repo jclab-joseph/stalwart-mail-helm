@@ -52,8 +52,11 @@ spec:
           - name: sieve
             containerPort: 4190
         volumeMounts:
-        - name: stalwart-volume
-          mountPath: {{ .Values.persistence.mountPath }}
+          - name: stalwart-volume
+            mountPath: {{ .Values.persistence.mountPath }}
+          {{- with .Values.volumeMounts }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
       {{- with .Values.nodeSelector }}
@@ -67,6 +70,12 @@ spec:
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.volumes }}
+      volumes:
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 6 }}
+        {{- end }}
       {{- end }}
   volumeClaimTemplates:
   - metadata:
