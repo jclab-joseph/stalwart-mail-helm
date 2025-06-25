@@ -20,7 +20,7 @@ persistence:
   storageClass: ""
   accessMode: ReadWriteOnce
   size: 10Gi
-  mountPath: /opt/stalwart-mail
+  mountPath: /opt/stalwart
 ```
 
 ## Resources
