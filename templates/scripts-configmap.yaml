@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "stalwart-mail.fullname" . }}-scripts
+  namespace: {{ .Release.Namespace | quote }}
+  labels:
+    {{- include "stalwart-mail.labels" . | nindent 4 }}
+data:
+  tls-reloader.sh: |
+    #!/bin/bash
+
+    SECRET_PATH="${1:-/secrets/tls}"
+    CHECK_INTERVAL="${2:-10}"
+    LOG_FILE="/var/log/secret-monitor.log"
+    HASH_FILE="/tmp/secret-hash.txt"
+
+    log() {
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >&1
+    }
+
+    calculate_hash() {
+        if [ -d "$SECRET_PATH" ]; then
+            find "$SECRET_PATH" -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1
+        else
+            echo "Directory $SECRET_PATH not found"
+            return 1
+        fi
+    }
+
+    init_hash() {
+        local hash=$(calculate_hash)
+        if [ $? -eq 0 ]; then
+            echo "$hash" > "$HASH_FILE"
+            log "Initial secret hash: $hash"
+        else
+            log "ERROR: Failed to calculate initial hash"
+            exit 1
+        fi
+    }
+
+    check_changes() {
+        local current_hash=$(calculate_hash)
+        local previous_hash=""
+
+        if [ -f "$HASH_FILE" ]; then
+            previous_hash=$(cat "$HASH_FILE")
+        fi
+
+        if [ "$current_hash" != "$previous_hash" ]; then
+            log "SECRET CHANGED! Previous: $previous_hash, Current: $current_hash"
+            echo "$current_hash" > "$HASH_FILE"
+
+            log_detailed_changes
+
+            on_secret_change
+
+            return 0
+        else
+            log "No changes detected"
+            return 1
+        fi
+    }
+
+    log_detailed_changes() {
+        log "Detailed file information:"
+        if [ -d "$SECRET_PATH" ]; then
+            find "$SECRET_PATH" -type f -exec ls -la {} \; | while read line; do
+                log "  $line"
+            done
+        fi
+    }
+
+    on_secret_change() {
+      stalwart-cli -u http://127.0.0.1:8080 -c "admin:${STALWART_PASSWORD}" server reload-certificates
+    }
+
+    cleanup() {
+        log "Received termination signal, cleaning up..."
+        rm -f "$HASH_FILE"
+        exit 0
+    }
+
+    main() {
+        log "Starting secret monitor for path: $SECRET_PATH"
+        log "Check interval: ${CHECK_INTERVAL}s"
+
+        trap cleanup SIGTERM SIGINT
+
+        init_hash
+
+        while true; do
+            sleep "$CHECK_INTERVAL"
+            check_changes
+        done
+    }
+
+    main "$@"

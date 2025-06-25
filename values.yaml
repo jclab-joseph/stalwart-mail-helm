@@ -126,3 +126,10 @@ persistence:
 volumes: []
 # -- Additional volumeMounts
 volumeMounts: []
+
+tls:
+  enabled: false
+  secretName: stalwart-tls
+
+admin:
+  password: ""

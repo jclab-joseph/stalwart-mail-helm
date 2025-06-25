@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "stalwart-mail.fullname" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     {{- include "stalwart-mail.labels" . | nindent 4 }}
 spec:
@@ -14,51 +15,86 @@ spec:
     metadata:
       labels:
         {{- include "stalwart-mail.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/scripts-configmap: {{ pick (include (print $.Template.BasePath "/scripts-configmap.yaml" ) . | fromYaml ) "data" | toYaml | sha256sum | quote }}
+        secret/credential-secret: {{ pick (include (print $.Template.BasePath "/secret-credential.yaml" ) . | fromYaml ) "data" | toYaml | sha256sum | quote }}
     spec:
       serviceAccountName: {{ include "stalwart-mail.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-      - name: stalwart-mail
-        image: {{ include "stalwart-mail.common.image" (dict "image" .Values.image "global" .Values.global "chart" .Chart ) | quote }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        livenessProbe:
-          httpGet:
-            path: /healthz/live
-            port: http
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /healthz/ready
-            port: http
-          initialDelaySeconds: 5
-          periodSeconds: 10        
-        ports:
-          - name: http
-            containerPort: 8080
-          - name: https
-            containerPort: 443
-          - name: smtp
-            containerPort: 25
-          - name: submission
-            containerPort: 587
-          - name: smtps
-            containerPort: 465
-          - name: imap
-            containerPort: 143
-          - name: imaps
-            containerPort: 993
-          - name: sieve
-            containerPort: 4190
-        volumeMounts:
-          - name: stalwart-volume
-            mountPath: {{ .Values.persistence.mountPath }}
-          {{- with .Values.volumeMounts }}
-          {{- toYaml . | nindent 10 }}
-          {{- end }}
-        resources:
-          {{- toYaml .Values.resources | nindent 10 }}
+        - name: stalwart-mail
+          image: {{ include "stalwart-mail.common.image" (dict "image" .Values.image "global" .Values.global "chart" .Chart ) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          livenessProbe:
+            httpGet:
+              path: /healthz/live
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz/ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: https
+              containerPort: 443
+            - name: smtp
+              containerPort: 25
+            - name: submission
+              containerPort: 587
+            - name: smtps
+              containerPort: 465
+            - name: imap
+              containerPort: 143
+            - name: imaps
+              containerPort: 993
+            - name: sieve
+              containerPort: 4190
+          volumeMounts:
+            - name: stalwart-volume
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- if .Values.tls.enabled }}
+            - name: tls-secret
+              mountPath: /secrets/tls
+            {{- end }}
+            {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.tls.enabled }}
+        - name: tls-reloader
+          image: {{ include "stalwart-mail.common.image" (dict "image" .Values.image "global" .Values.global "chart" .Chart ) | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/bash
+          args:
+            - "/opt/scripts/tls-reloader.sh"
+            - "/secrets/tls"
+            - "10"
+          env:
+            - name: STALWART_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stalwart-mail.fullname" . }}-credential
+                  key: "admin-password"
+          volumeMounts:
+            - name: tls-secret
+              mountPath: /secrets/tls
+            - name: credential-secret
+              mountPath: /secrets/credential
+            - name: scripts
+              mountPath: /opt/scripts
+          resources:
+            limits:
+              memory: 128Mi
+              cpu: 100m
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -71,12 +107,21 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- if .Values.volumes }}
       volumes:
-        {{- with .Values.volumes }}
-        {{- toYaml . | nindent 6 }}
+        - name: credential-secret
+          secret:
+            secretName: {{ include "stalwart-mail.fullname" . }}-credential
+        {{- if .Values.tls.enabled }}
+        - name: tls-secret
+          secret:
+            secretName: {{ .Values.tls.secretName | quote }}
+        - name: scripts
+          configMap:
+            name: {{ include "stalwart-mail.fullname" . }}-scripts
         {{- end }}
-      {{- end }}
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
   volumeClaimTemplates:
   - metadata:
       name: stalwart-volume
