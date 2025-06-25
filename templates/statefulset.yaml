@@ -20,7 +20,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: stalwart-mail
-        image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+        image: {{ include "stalwart-mail.common.image" (dict "image" .Values.image "global" .Values.global "chart" .Chart ) | quote }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         livenessProbe:
           httpGet:

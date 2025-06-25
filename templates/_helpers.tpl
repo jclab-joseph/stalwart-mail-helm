@@ -60,3 +60,25 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{- define "stalwart-mail.common.image" -}}
+{{- $registryName := default .image.registry ((.global).imageRegistry) -}}
+{{- $repositoryName := .image.repository -}}
+{{- $separator := ":" -}}
+{{- $termination := .image.tag | toString -}}
+
+{{- if not .image.tag }}
+  {{- if .chart }}
+    {{- $termination = .chart.AppVersion | toString -}}
+  {{- end -}}
+{{- end -}}
+{{- if .image.digest }}
+    {{- $separator = "@" -}}
+    {{- $termination = .image.digest | toString -}}
+{{- end -}}
+{{- if $registryName }}
+    {{- printf "%s/%s%s%s" $registryName $repositoryName $separator $termination -}}
+{{- else -}}
+    {{- printf "%s%s%s"  $repositoryName $separator $termination -}}
+{{- end -}}
+{{- end -}}

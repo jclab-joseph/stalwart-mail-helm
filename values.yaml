@@ -1,6 +1,12 @@
-# Default values for stalwart-mail.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+global:
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  ##
+  imagePullSecrets: []
+  defaultStorageClass: ""
+  storageClass: ""
 
 replicaCount: 1
 
@@ -114,5 +120,4 @@ persistence:
   storageClass: ""
   accessMode: ReadWriteOnce
   size: 10Gi
-  mountPath: /opt/stalwart-mail
-
+  mountPath: /opt/stalwart
