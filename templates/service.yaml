@@ -21,6 +21,12 @@ spec:
   {{- end }}
   selector:
     {{- include "stalwart-mail.selectorLabels" . | nindent 4 }}
+  {{- if .Values.service.externalIPs }}
+  externalIPs: {{ .Values.service.externalIPs | toJson }}
+  {{- end }}
+  {{- if .Values.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.service.externalTrafficPolicy | quote }}
+  {{- end }}
 ---
 {{- if .Values.externalAccess.enabled }}
 {{- range $i := until (int .Values.replicaCount) }}
